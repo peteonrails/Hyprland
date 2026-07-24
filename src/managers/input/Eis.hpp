@@ -47,6 +47,11 @@ class CEis {
         eis_device* m_keyboard = nullptr;
     } m_client;
 
+    // Keymap string last pushed to the EIS keyboard device. Used to
+    // skip rebuilding the device when the active keyboard changes but
+    // the keymap itself does not (see resetKeyboard).
+    std::string      m_lastKeymap;
+
     int              onEvent(eis_event* e);
     int              pollEvents();
     void             ensurePointer();

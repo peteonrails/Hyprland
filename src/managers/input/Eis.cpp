@@ -210,6 +210,9 @@ void CEis::ensureKeyboard() {
     eis_device_resume(keyboard);
 
     m_client.m_keyboard = keyboard;
+
+    if (const auto KEEB = g_pSeatManager->m_keyboard.lock(); KEEB)
+        m_lastKeymap = KEEB->m_xkbKeymapString;
 }
 
 CEis::SKeymap CEis::getKeymap() {
@@ -276,6 +279,17 @@ void CEis::stopEmulating() {
 void CEis::resetKeyboard() {
     if (!m_client.m_keyboard) //We don't re-create the keyboard if it doesn't exist
         return;
+
+    // The active keyboard can change (e.g. focus moving between a
+    // physical keyboard and a virtual one) without the keymap itself
+    // changing. Rebuilding the EIS keyboard device on every such change
+    // is pointless and, because each rebuild hands libei a fresh dup of
+    // the keymap fd, leaks a file descriptor per cycle — enough under
+    // sustained churn to exhaust the compositor's fd table and abort it.
+    // Only rebuild when the keymap actually changed.
+    if (const auto KEEB = g_pSeatManager->m_keyboard.lock(); KEEB && KEEB->m_xkbKeymapString == m_lastKeymap)
+        return;
+
     clearKeyboard();
     ensureKeyboard();
 }
